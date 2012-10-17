@@ -9,7 +9,7 @@
       <gallery:type
         factory=".FlickrAdapter"
         provides="collective.ptg.flickr.IFlickrAdapter"
-        condition=".flickr.add_condition"
+        condition=".add_condition"
     />
 
 
