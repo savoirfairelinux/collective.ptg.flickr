@@ -6,7 +6,7 @@ version = "0.1"
 setup(name='collective.ptg.flickr',
       version=version,
       description="Add on collective.plonetruegallery to aggregate "
-                  "from picasa and flickr or use plone images.",
+                  "from flickr",
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       classifiers=[
@@ -18,7 +18,7 @@ setup(name='collective.ptg.flickr',
         "Framework :: Plone :: 4.1",
         "Framework :: Plone :: 4.2"
         ],
-      keywords='gallery picasa flickr ',
+      keywords='gallery flickr ',
       author='Nathan Van Gheem',
       author_email='vangheem@gmail.com',
       url='http://www.plone.org/products/plone-true-gallery',
@@ -29,7 +29,6 @@ setup(name='collective.ptg.flickr',
       zip_safe=False,
       install_requires=[
           'setuptools',
-          'gdata',
           'flickrapi',
           'plone.app.z3cform',
           'collective.plonetruegallery'
@@ -40,8 +39,6 @@ setup(name='collective.ptg.flickr',
             'gdata',
           ],
           flickr=['flickrapi'],
-          picasa=['gdata'],
-          all=['flickrapi', 'gdata']
       ),
       entry_points="""
       # -*- Entry points: -*-

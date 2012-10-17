@@ -7,8 +7,8 @@
       
 
       <gallery:type
-        factory=".flickr.FlickrAdapter"
-        provides="collective.ptg.flickr.flickr.IFlickrAdapter"
+        factory=".FlickrAdapter"
+        provides="collective.ptg.flickr.IFlickrAdapter"
         condition=".flickr.add_condition"
     />
 
