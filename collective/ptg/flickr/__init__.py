@@ -3,8 +3,6 @@ from flickr import FlickrAdapter
 from z3c.form import validator, error
 import zope.interface
 import zope.component
-from collective.ptg.flickr import IFlickrGallerySettings
-
 
 from zope.interface import Interface, Attribute
 from collective.plonetruegallery.interfaces import \
