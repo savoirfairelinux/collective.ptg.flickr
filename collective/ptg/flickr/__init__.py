@@ -1,5 +1,3 @@
-from flickr import FlickrAdapter
-
 from z3c.form import validator, error
 import zope.interface
 import zope.component
