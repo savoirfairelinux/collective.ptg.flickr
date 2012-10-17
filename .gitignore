@@ -1,0 +1,8 @@
+
+collective.ptg.flickr.egg-info/not-zip-safe
+
+.DS_Store
+
+*.pyc
+
+collective.ptg.flickr.egg-info
