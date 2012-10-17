@@ -29,6 +29,8 @@ setup(name='collective.ptg.flickr',
       zip_safe=False,
       install_requires=[
           'setuptools',
+          'gdata',
+          'flickrapi',
           'plone.app.z3cform',
           'collective.plonetruegallery'
       ],
