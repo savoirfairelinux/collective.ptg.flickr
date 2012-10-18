@@ -36,7 +36,6 @@ setup(name='collective.ptg.flickr',
       extras_require=dict(
           tests=[
             'flickrapi',
-            'gdata',
           ],
           flickr=['flickrapi'],
       ),
