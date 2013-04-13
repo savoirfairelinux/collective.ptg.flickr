@@ -120,12 +120,19 @@ class FlickrAdapter(BaseAdapter):
     }
 
     def assemble_image_information(self, image):
+        img_url = self.get_large_photo_url(image)
         return {
-            'image_url': self.get_large_photo_url(image),
+            'image_url': img_url,
             'thumb_url': self.get_mini_photo_url(image),
             'link': self.get_photo_link(image),
             'title': image.get('title'),
-            'description': ""
+            'description': "",
+            'original_image_url': img_url,
+            'download_url': img_url,
+            'copyright': '',
+            'portal_type': '_flickr',
+            'keywords': '', 
+            'bodytext': ''
         }
 
     def get_flickr_user_id(self, username=None):
