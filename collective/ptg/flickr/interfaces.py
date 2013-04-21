@@ -1,13 +1,21 @@
 
 # Zope imports
+from z3c.form import validator
 from zope import schema
-from zope.interface import Attribute
 from zope.i18nmessageid import MessageFactory
+from zope.interface import Attribute
+import zope.component
 
 # PTG imports
 from collective.plonetruegallery.interfaces import IGalleryAdapter, IBaseSettings
 
-# local imports
+# Local imports
+from validators import (
+        FlickrUserValidator,
+        FlickrSetValidator,
+        FlickrCollectionValidator)
+
+# Translation
 _ = MessageFactory('collective.ptg.flickr')
 
 
@@ -90,3 +98,18 @@ class IFlickrGallerySettings(IBaseSettings):
         title=_("Collection ID"),
         description=_(u"Will be ignored if a photoset is provided."),
         required=False)
+
+# Validators for IFlickrGallerySettings
+
+validator.WidgetValidatorDiscriminators(FlickrUserValidator,
+    field=IFlickrGallerySettings['flickr_username'])
+zope.component.provideAdapter(FlickrUserValidator)
+
+validator.WidgetValidatorDiscriminators(FlickrSetValidator,
+    field=IFlickrGallerySettings['flickr_set'])
+zope.component.provideAdapter(FlickrSetValidator)
+
+validator.WidgetValidatorDiscriminators(FlickrCollectionValidator,
+    field=IFlickrGallerySettings['flickr_collection'])
+zope.component.provideAdapter(FlickrCollectionValidator)
+

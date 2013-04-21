@@ -1,20 +1,19 @@
 
 
 # Zope imports
-import zope.component
-from z3c.form import validator
 from zope.interface import implements
 from zope.i18nmessageid import MessageFactory
 
 # PTG imports
 from collective.plonetruegallery.galleryadapters.base import BaseAdapter
-from collective.plonetruegallery.utils import getGalleryAdapter
-from collective.plonetruegallery.validators import Data
 from collective.plonetruegallery.interfaces import IGalleryAdapter
 
-# local imports
-from interfaces import IFlickrGallerySettings, IFlickrAdapter
+# Local imports
+from interfaces import (
+        IFlickrGallerySettings,
+        IFlickrAdapter)
 
+# Translation
 _ = MessageFactory('collective.ptg.flickr')
 
 # TODO : this should be a Plone setting
@@ -35,9 +34,6 @@ def add_condition():
     except:
         return False
     return True
-
-def empty(v):
-    return v is None or len(v.strip()) == 0
 
 
 class FlickrAdapter(BaseAdapter):
@@ -249,118 +245,4 @@ class FlickrAdapter(BaseAdapter):
         # TODO : will this ever happen ?
         else: return []
 
-
-class FlickrSetValidator(validator.SimpleFieldValidator):
-
-    def validate(self, photoset):
-        super(FlickrSetValidator, self).validate(photoset)
-
-        context = self.context
-        request = self.request
-        settings = Data(self.view)
-
-        if settings.gallery_type != 'flickr':
-            return
-
-        adapter = getGalleryAdapter(context, request, settings.gallery_type)
-        user_id = adapter.get_flickr_user_id(settings.flickr_username)
-        collection_id = adapter.get_flickr_collection_id()
-
-        if empty(photoset) and empty(collection_id):
-            raise zope.schema.ValidationError(
-                _(u"Please provide a Flickr set to use."),
-                True
-            )
-
-        try:
-            photoset_id = adapter.get_flickr_photoset_id(user_id, photoset)
-
-            if empty(photoset_id):
-                raise zope.schema.ValidationError(
-                    _(u"Could not find Flickr set."),
-                    True
-                )
-
-        except:
-            raise zope.schema.ValidationError(
-                _(u"Could not find Flickr set."),
-                True
-            )
-validator.WidgetValidatorDiscriminators(FlickrSetValidator,
-    field=IFlickrGallerySettings['flickr_set'])
-zope.component.provideAdapter(FlickrSetValidator)
-
-
-class FlickrUserValidator(validator.SimpleFieldValidator):
-
-    def validate(self, username):
-        super(FlickrUserValidator, self).validate(username)
-
-        context = self.context
-        request = self.request
-
-        settings = Data(self.view)
-        if settings.gallery_type != 'flickr':
-            return
-
-        if empty(username):
-            raise zope.schema.ValidationError(
-                _(u"You must specify a Flickr user ID."),
-                True
-            )
-
-        try:
-            adapter = getGalleryAdapter(context, request, settings.gallery_type)
-            user_id = adapter.get_flickr_user_id(username)
-            if empty(user_id):
-                raise zope.schema.ValidationError(
-                    _(u"Could not find Flickr user."),
-                    True
-                )
-        except:
-            raise zope.schema.ValidationError(_(u"Could not find Flickr user."),
-                True
-            )
-validator.WidgetValidatorDiscriminators(FlickrUserValidator,
-    field=IFlickrGallerySettings['flickr_username'])
-zope.component.provideAdapter(FlickrUserValidator)
-
-
-class FlickrCollectionValidator(validator.SimpleFieldValidator):
-
-    def validate(self, collection_id):
-        super(FlickrCollectionValidator, self).validate(collection_id)
-
-        context = self.context
-        request = self.request
-        settings = Data(self.view)
-
-        if settings.gallery_type != 'flickr':
-            return
-
-        # Nothing to validate, and the field is not required.
-        if empty(collection_id):
-            return
-
-        adapter = getGalleryAdapter(context, request, settings.gallery_type)
-        user_id = adapter.get_flickr_user_id()
-
-        try:
-            # Failure to obtain the collection's first photoset
-            # means it's nonexistent or empty
-            adapter.gen_collection_sets(
-                    user_id=user_id,
-                    collection_id=collection_id).next()
-
-        # TODO : specific exception handling; adapter.flickr.FlickrError...
-        except:
-            raise zope.schema.ValidationError(
-                _(u"Could not find collection, or collection is empty."),
-                True
-            )
-
-
-validator.WidgetValidatorDiscriminators(FlickrCollectionValidator,
-    field=IFlickrGallerySettings['flickr_collection'])
-zope.component.provideAdapter(FlickrCollectionValidator)
 
