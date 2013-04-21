@@ -16,7 +16,11 @@ from zope.i18nmessageid import MessageFactory
 
 _ = MessageFactory('collective.ptg.flickr')
 
+# TODO : this should be a Plone setting
 API_KEY = "9b354d88fb47b772fee4f27ab15d6854"
+
+# TODO : this should be taken from PloneTrueGallery settings
+MAX_COLLECTION_PHOTOS = 12
 
 try:
     import flickrapi
@@ -54,12 +58,33 @@ class IFlickrAdapter(IGalleryAdapter):
         not specified.
         """
 
+    def get_flickr_collection_id(self):
+        """
+        Returns the collection id. Uses value from settings.
+        """
+
     def gen_collection_sets(user_id=None, collection_id=None):
         """
         Yields all photosets from a collection (as ElementTree objects)
         Available attributes: [id, title, description]
 
         Uses values from settings if user_id and collection_id are not specified.
+        """
+
+    def gen_photoset_photos(user_id=None, photoset_id=None):
+        """
+        Yields all photos from a photoset (as ElementTree objects)
+        Available attributes: ['secret', 'title', 'farm', 'isprimary', 'id', 'dateupload', 'server']
+
+        Uses values from settings if user_id and photoset_id are not specified.
+        """
+
+    def get_collection_photos(user_id=None, collection_id=None, max_photos=MAX_COLLECTION_PHOTOS):
+        """
+        Returns a sliced list of photos from given collection,
+        sorted by upload date (most recent first)
+
+        Available attributes: same as gen_photoset_photos.
         """
 
     def get_mini_photo_url(photo):
@@ -175,6 +200,11 @@ class FlickrAdapter(BaseAdapter):
 
         if theset is None:
             theset = settings.flickr_set
+
+            # This means we're using a collection, not a set.
+            if theset is None:
+                return None
+
         theset = theset.strip()
 
         photosets = flickr \
@@ -194,24 +224,51 @@ class FlickrAdapter(BaseAdapter):
 
         return None
 
-    def gen_collection_sets(self, user_id=None, collection_id=None):
+    def get_flickr_collection_id(self):
         settings = self.settings
+        return settings.flickr_collection.strip()
+
+    def gen_collection_sets(self, user_id, collection_id):
+
         flickr = self.flickr
 
-        if user_id is None:
-            user_id = self.get_flickr_user_id()
-        user_id = user_id.strip()
-
-        if collection_id is None:
-            collection_id = settings.flickr_collection
-        collection_id = collection_id.strip()
-
+        # Yield all photosets.
+        # Exception handling is expected to be made by calling context.
         for photoset in flickr \
             .collections_getTree(
                         user_id=user_id,
                         collection_id=collection_id) \
             .find('collections') \
             .find('collection').getchildren(): yield photoset
+
+    def gen_photoset_photos(self, user_id, photoset_id):
+
+        flickr = self.flickr
+
+        # Yield all photos.
+        # Exception handling is expected to be made by calling context.
+        for photo in flickr \
+                    .photosets_getPhotos(
+                            user_id=user_id,
+                            photoset_id=photoset_id,
+                            extras='date_upload',
+                            media='photos') \
+                    .find('photoset').getchildren(): yield photo
+
+    def get_collection_photos(self, user_id, collection_id, max_photos=MAX_COLLECTION_PHOTOS):
+
+        # Collect every single photo from that collection.
+        photos = []
+        for photoset in self.gen_collection_sets(user_id, collection_id):
+            photoset_id = photoset.attrib['id']
+            for photo in self.gen_photoset_photos(user_id, photoset_id):
+                photos.append(photo)
+
+        # Most recent first.
+        photos.sort(key=lambda p:p.attrib['dateupload'], reverse=True)
+
+        # We really don't need them all.
+        return photos[:max_photos]
 
 
     def get_mini_photo_url(self, photo):
@@ -243,23 +300,33 @@ class FlickrAdapter(BaseAdapter):
 
     def retrieve_images(self):
 
-        flickr = self.flickr
         user_id = self.get_flickr_user_id()
         photoset_id = self.get_flickr_photoset_id()
+        collection_id = self.get_flickr_collection_id()
 
-        try:
-            photos = flickr \
-                    .photosets_getPhotos(
-                            user_id=user_id,
-                            photoset_id=photoset_id,
-                            media='photos') \
-                    .find('photoset').getchildren()
+        if photoset_id:
 
-            return [self.assemble_image_information(image) for image in photos]
-        except Exception, inst:
-            self.log_error(Exception, inst, "Error getting all images")
-            return []
-            
+            try:
+                photos = self.gen_photoset_photos(user_id, photoset_id)
+            except Exception, inst:
+                self.log_error(Exception, inst, "Error getting all images")
+                return []
+            else:
+                return [self.assemble_image_information(image) for image in photos]
+
+        elif collection_id:
+
+            try:
+                photos = self.get_collection_photos(user_id, collection_id)
+            except Exception, inst:
+                self.log_error(Exception, inst, "Error getting all images")
+                return []
+            else:
+                return [self.assemble_image_information(image) for image in photos]
+
+        # TODO : will this ever happen ?
+        else: return []
+
 
 class FlickrSetValidator(validator.SimpleFieldValidator):
 
@@ -273,15 +340,17 @@ class FlickrSetValidator(validator.SimpleFieldValidator):
         if settings.gallery_type != 'flickr':
             return
 
-        if empty(photoset):
+        adapter = getGalleryAdapter(context, request, settings.gallery_type)
+        user_id = adapter.get_flickr_user_id(settings.flickr_username)
+        collection_id = adapter.get_flickr_collection_id()
+
+        if empty(photoset) and empty(collection_id):
             raise zope.schema.ValidationError(
                 _(u"Please provide a Flickr set to use."),
                 True
             )
 
         try:
-            adapter = getGalleryAdapter(context, request, settings.gallery_type)
-            user_id = adapter.get_flickr_user_id(settings.flickr_username)
             photoset_id = adapter.get_flickr_photoset_id(user_id, photoset)
 
             if empty(photoset_id):
@@ -367,6 +436,8 @@ class FlickrCollectionValidator(validator.SimpleFieldValidator):
                 _(u"Could not find collection, or collection is empty."),
                 True
             )
+
+
 validator.WidgetValidatorDiscriminators(FlickrCollectionValidator,
     field=IFlickrGallerySettings['flickr_collection'])
 zope.component.provideAdapter(FlickrCollectionValidator)
