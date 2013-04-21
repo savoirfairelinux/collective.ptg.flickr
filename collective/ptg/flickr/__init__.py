@@ -47,7 +47,7 @@ class IFlickrAdapter(IGalleryAdapter):
         settings
         """
 
-    def get_flickr_photoset_id(theset=None, userid=None):
+    def get_flickr_photoset_id(user_id=None, theset=None):
         """
         Returns the photoset id given a set name and user id.
         Uses the set and get_flickr_user_id() if they are
@@ -72,21 +72,17 @@ class IFlickrAdapter(IGalleryAdapter):
 class IFlickrGallerySettings(IBaseSettings):
 
     flickr_username = schema.TextLine(
-        title=_(u"Flickr User"),
-        description=_(u"The ID of your Flickr account."),
+        title=_(u"Flickr username or ID"),
         required=False)
 
     flickr_set = schema.TextLine(
-        title=_(u"Photoset"),
-        description=_(u"The ID of your Flickr photoset."
-                      u" Has priority over collection ID."),
+        title=_(u"Photoset title or ID"),
+        description=_(u"Has priority over collection."),
         required=False)
 
     flickr_collection = schema.TextLine(
-        title=_("Collection"),
-        description=_(u"ID of your Flickr collection."
-                      u" Will be ignored if a photoset ID is provided."
-        ),
+        title=_("Collection ID"),
+        description=_(u"Will be ignored if a photoset is provided."),
         required=False)
 
 class FlickrAdapter(BaseAdapter):
@@ -137,37 +133,54 @@ class FlickrAdapter(BaseAdapter):
         }
 
     def get_flickr_user_id(self, username=None):
+        settings = self.settings
+        flickr = self.flickr
+
         if username is None:
-            username = self.settings.flickr_username
+            username = settings.flickr_username
         username = username.strip()
 
+        # Must be an username.
         try:
-            return self.flickr.people_findByUsername(
-                username=username).find('user').get('nsid')
+            return flickr \
+                    .people_findByUsername(username=username) \
+                    .find('user').get('nsid')
+
+        # No ? Must be an ID then.
         except:
             try:
-                return self.flickr.people_getInfo(
-                    user_id=username).find('person').get('nsid')
+                return flickr \
+                        .people_getInfo(user_id=username) \
+                        .find('person').get('nsid')
             except Exception, inst:
                 self.log_error(Exception, inst, "Can't find Flickr user ID")
 
         return None
 
-    def get_flickr_photoset_id(self, theset=None, userid=None):
-        if userid is None:
-            userid = self.get_flickr_user_id()
-        userid = userid.strip()
+    def get_flickr_photoset_id(self, user_id=None, theset=None):
+        settings = self.settings
+        flickr = self.flickr
+
+        if user_id is None:
+            user_id = self.get_flickr_user_id()
+        user_id = user_id.strip()
 
         if theset is None:
-            theset = self.settings.flickr_set
+            theset = settings.flickr_set
         theset = theset.strip()
 
-        sets = self.flickr.photosets_getList(user_id=userid)
+        photosets = flickr \
+                    .photosets_getList(user_id=user_id) \
+                    .find('photosets').getchildren()
 
-        for photoset in sets.find('photosets').getchildren():
-            if photoset.find('title').text == theset or \
-                    photoset.get('id') == theset:
-                return photoset.get('id')
+        for photoset in photosets:
+
+            photoset_title = photoset.find('title').text
+            photoset_id = photoset.get('id')
+
+            # Matching title or ID means we found it.
+            if theset in (photoset_title, photoset_id):
+                return photoset_id
 
         return None
 
@@ -199,26 +212,31 @@ class FlickrAdapter(BaseAdapter):
         return  flickrapi.FlickrAPI(API_KEY)
 
     def retrieve_images(self):
-        try:
-            photos = self.flickr.photosets_getPhotos(
-                user_id=self.get_flickr_user_id(),
-                photoset_id=self.get_flickr_photoset_id(),
-                media='photos'
-            )
 
-            return [self.assemble_image_information(image)
-                for image in photos.find('photoset').getchildren()]
+        flickr = self.flickr
+        user_id = self.get_flickr_user_id()
+        photoset_id = self.get_flickr_photoset_id()
+
+        try:
+            photos = flickr \
+                    .photosets_getPhotos(
+                            user_id=user_id,
+                            photoset_id=photoset_id,
+                            media='photos') \
+                    .find('photoset').getchildren()
+
+            return [self.assemble_image_information(image) for image in photos]
         except Exception, inst:
             self.log_error(Exception, inst, "Error getting all images")
             return []
-
-
             
-            
+
 class FlickrSetValidator(validator.SimpleFieldValidator):
 
     def validate(self, photoset):
         super(FlickrSetValidator, self).validate(photoset)
+        context = self.context
+        request = self.request
         settings = Data(self.view)
 
         if settings.gallery_type != 'flickr':
@@ -231,13 +249,11 @@ class FlickrSetValidator(validator.SimpleFieldValidator):
             )
 
         try:
-            adapter = getGalleryAdapter(self.context, self.request,
-                                        settings.gallery_type)
-            userid = adapter.get_flickr_user_id(settings.flickr_username)
-            flickr_photosetid = adapter.get_flickr_photoset_id(photoset,
-                                                               userid)
+            adapter = getGalleryAdapter(context, request, settings.gallery_type)
+            user_id = adapter.get_flickr_user_id(settings.flickr_username)
+            photoset_id = adapter.get_flickr_photoset_id(user_id, photoset)
 
-            if empty(flickr_photosetid):
+            if empty(photoset_id):
                 raise zope.schema.ValidationError(
                     _(u"Could not find Flickr set."),
                     True
@@ -258,6 +274,9 @@ class FlickrUserValidator(validator.SimpleFieldValidator):
     def validate(self, username):
         super(FlickrUserValidator, self).validate(username)
 
+        context = self.context
+        request = self.request
+
         settings = Data(self.view)
         if settings.gallery_type != 'flickr':
             return
@@ -269,10 +288,9 @@ class FlickrUserValidator(validator.SimpleFieldValidator):
             )
 
         try:
-            adapter = getGalleryAdapter(self.context, self.request,
-                                        settings.gallery_type)
-            flickr_userid = adapter.get_flickr_user_id(username)
-            if empty(flickr_userid):
+            adapter = getGalleryAdapter(context, request, settings.gallery_type)
+            user_id = adapter.get_flickr_user_id(username)
+            if empty(user_id):
                 raise zope.schema.ValidationError(
                     _(u"Could not find Flickr user."),
                     True
@@ -284,5 +302,32 @@ class FlickrUserValidator(validator.SimpleFieldValidator):
 validator.WidgetValidatorDiscriminators(FlickrUserValidator,
     field=IFlickrGallerySettings['flickr_username'])
 zope.component.provideAdapter(FlickrUserValidator)
+
+
+class FlickrCollectionValidator(validator.SimpleFieldValidator):
+
+    def validate(self, collection_id):
+        super(FlickrCollectionValidator, self).validate(collection_id)
+        context = self.context
+        request = self.request
+        settings = Data(self.view)
+
+        if settings.gallery_type != 'flickr':
+            return
+
+        # Nothing to validate, and the field is not required.
+        if empty(collection_id):
+            return
+
+        # TODO : validate it for real (work in progress)
+        return
+
+        raise zope.schema.ValidationError(
+            _(u"Could not find flickr collection."),
+            True
+        )
+validator.WidgetValidatorDiscriminators(FlickrCollectionValidator,
+    field=IFlickrGallerySettings['flickr_collection'])
+zope.component.provideAdapter(FlickrCollectionValidator)
 
 
