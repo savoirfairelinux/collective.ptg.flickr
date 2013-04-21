@@ -1,18 +1,16 @@
-from z3c.form import validator, error
-import zope.interface
-import zope.component
 
-from zope.interface import Interface, Attribute
-from collective.plonetruegallery.interfaces import \
-    IGalleryAdapter, IBaseSettings
-from collective.plonetruegallery.validators import \
-    Data
-from collective.plonetruegallery.utils import getGalleryAdapter
-    
-#dont know if next line is needed
-from zope.interface import implements
-from collective.plonetruegallery.galleryadapters.base import BaseAdapter
+
+# Zope imports
+import zope.component
+from z3c.form import validator
 from zope import schema
+from zope.interface import Attribute, implements
+
+# PTG imports
+from collective.plonetruegallery.galleryadapters.base import BaseAdapter
+from collective.plonetruegallery.interfaces import IGalleryAdapter, IBaseSettings
+from collective.plonetruegallery.utils import getGalleryAdapter
+from collective.plonetruegallery.validators import Data
 
 from zope.i18nmessageid import MessageFactory
 
@@ -40,7 +38,7 @@ class IFlickrAdapter(IGalleryAdapter):
     """
     """
 
-    flickr = Attribute("returns a flickrapi object for the api key")
+    flickr = Attribute("Returns a flickrapi object for the api key")
 
     def get_flickr_user_id(username):
         """
@@ -72,18 +70,22 @@ class IFlickrAdapter(IGalleryAdapter):
         """
 
 class IFlickrGallerySettings(IBaseSettings):
+
     flickr_username = schema.TextLine(
-        title=_(u"label_flickr_username", default=u"flickr username"),
-        description=_(u"description_flickr_username",
-            default=u"The username/id of your flickr account. "
-                    u"(*flickr* gallery type)"
-        ),
+        title=_(u"Flickr User"),
+        description=_(u"The ID of your Flickr account."),
         required=False)
+
     flickr_set = schema.TextLine(
-        title=_(u"label_flickr_set", default="Flickr Set"),
-        description=_(u"description_flickr_set",
-            default=u"Name/id of your flickr set."
-                    u"(*flickr* gallery type)"
+        title=_(u"Photoset"),
+        description=_(u"The ID of your Flickr photoset."
+                      u" Has priority over collection ID."),
+        required=False)
+
+    flickr_collection = schema.TextLine(
+        title=_("Collection"),
+        description=_(u"ID of your Flickr collection."
+                      u" Will be ignored if a photoset ID is provided."
         ),
         required=False)
 
@@ -92,8 +94,7 @@ class FlickrAdapter(BaseAdapter):
 
     schema = IFlickrGallerySettings
     name = u"flickr"
-    description = _(u"label_flickr_gallery_type",
-        default=u"Flickr")
+    description = _(u"Flickr")
 
     sizes = {
         'small': {
@@ -148,7 +149,7 @@ class FlickrAdapter(BaseAdapter):
                 return self.flickr.people_getInfo(
                     user_id=username).find('person').get('nsid')
             except Exception, inst:
-                self.log_error(Exception, inst, "Can't find filckr user id")
+                self.log_error(Exception, inst, "Can't find Flickr user ID")
 
         return None
 
@@ -210,6 +211,8 @@ class FlickrAdapter(BaseAdapter):
         except Exception, inst:
             self.log_error(Exception, inst, "Error getting all images")
             return []
+
+
             
             
 class FlickrSetValidator(validator.SimpleFieldValidator):
@@ -223,8 +226,7 @@ class FlickrSetValidator(validator.SimpleFieldValidator):
 
         if empty(photoset):
             raise zope.schema.ValidationError(
-                _(u"label_validate_flickr_specify_user",
-                    default=u"You must specify a flickr set to use."),
+                _(u"Please provide a Flickr set to use."),
                 True
             )
 
@@ -237,14 +239,13 @@ class FlickrSetValidator(validator.SimpleFieldValidator):
 
             if empty(flickr_photosetid):
                 raise zope.schema.ValidationError(
-                    _(u"label_validate_flickr_find_set",
-                    default="Could not find flickr set."),
+                    _(u"Could not find Flickr set."),
                     True
                 )
+
         except:
             raise zope.schema.ValidationError(
-                _(u"label_validate_flickr_find_set",
-                default="Could not find flickr set."),
+                _(u"Could not find Flickr set."),
                 True
             )
 validator.WidgetValidatorDiscriminators(FlickrSetValidator,
@@ -252,10 +253,10 @@ validator.WidgetValidatorDiscriminators(FlickrSetValidator,
 zope.component.provideAdapter(FlickrSetValidator)
 
 
-class FlickrUsernameValidator(validator.SimpleFieldValidator):
+class FlickrUserValidator(validator.SimpleFieldValidator):
 
     def validate(self, username):
-        super(FlickrUsernameValidator, self).validate(username)
+        super(FlickrUserValidator, self).validate(username)
 
         settings = Data(self.view)
         if settings.gallery_type != 'flickr':
@@ -263,8 +264,7 @@ class FlickrUsernameValidator(validator.SimpleFieldValidator):
 
         if empty(username):
             raise zope.schema.ValidationError(
-                _(u"label_validate_flickr_specify_username",
-                default=u"You must specify a username."),
+                _(u"You must specify a Flickr user ID."),
                 True
             )
 
@@ -274,18 +274,15 @@ class FlickrUsernameValidator(validator.SimpleFieldValidator):
             flickr_userid = adapter.get_flickr_user_id(username)
             if empty(flickr_userid):
                 raise zope.schema.ValidationError(
-                    _(u"label_validate_flickr_user",
-                    default=u"Could not find flickr user."),
+                    _(u"Could not find Flickr user."),
                     True
                 )
         except:
-            raise zope.schema.ValidationError(_(u"label_validate_flickr_user",
-                default=u"Could not find flickr user."),
+            raise zope.schema.ValidationError(_(u"Could not find Flickr user."),
                 True
             )
-validator.WidgetValidatorDiscriminators(FlickrUsernameValidator,
+validator.WidgetValidatorDiscriminators(FlickrUserValidator,
     field=IFlickrGallerySettings['flickr_username'])
-zope.component.provideAdapter(FlickrUsernameValidator)
+zope.component.provideAdapter(FlickrUserValidator)
 
-            
-            
+
