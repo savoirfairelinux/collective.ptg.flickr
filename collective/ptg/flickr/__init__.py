@@ -54,6 +54,14 @@ class IFlickrAdapter(IGalleryAdapter):
         not specified.
         """
 
+    def gen_collection_sets(user_id=None, collection_id=None):
+        """
+        Yields all photosets from a collection (as ElementTree objects)
+        Available attributes: [id, title, description]
+
+        Uses values from settings if user_id and collection_id are not specified.
+        """
+
     def get_mini_photo_url(photo):
         """
         takes a photo and creates the thumbnail photo url
@@ -182,7 +190,29 @@ class FlickrAdapter(BaseAdapter):
             if theset in (photoset_title, photoset_id):
                 return photoset_id
 
+        # TODO : log "exception" here ?
+
         return None
+
+    def gen_collection_sets(self, user_id=None, collection_id=None):
+        settings = self.settings
+        flickr = self.flickr
+
+        if user_id is None:
+            user_id = self.get_flickr_user_id()
+        user_id = user_id.strip()
+
+        if collection_id is None:
+            collection_id = settings.flickr_collection
+        collection_id = collection_id.strip()
+
+        for photoset in flickr \
+            .collections_getTree(
+                        user_id=user_id,
+                        collection_id=collection_id) \
+            .find('collections') \
+            .find('collection').getchildren(): yield photoset
+
 
     def get_mini_photo_url(self, photo):
         return "http://farm%s.static.flickr.com/%s/%s_%s_s.jpg" % (
@@ -235,6 +265,7 @@ class FlickrSetValidator(validator.SimpleFieldValidator):
 
     def validate(self, photoset):
         super(FlickrSetValidator, self).validate(photoset)
+
         context = self.context
         request = self.request
         settings = Data(self.view)
@@ -308,6 +339,7 @@ class FlickrCollectionValidator(validator.SimpleFieldValidator):
 
     def validate(self, collection_id):
         super(FlickrCollectionValidator, self).validate(collection_id)
+
         context = self.context
         request = self.request
         settings = Data(self.view)
@@ -319,13 +351,22 @@ class FlickrCollectionValidator(validator.SimpleFieldValidator):
         if empty(collection_id):
             return
 
-        # TODO : validate it for real (work in progress)
-        return
+        adapter = getGalleryAdapter(context, request, settings.gallery_type)
+        user_id = adapter.get_flickr_user_id()
 
-        raise zope.schema.ValidationError(
-            _(u"Could not find flickr collection."),
-            True
-        )
+        try:
+            # Failure to obtain the collection's first photoset
+            # means it's nonexistent or empty
+            adapter.gen_collection_sets(
+                    user_id=user_id,
+                    collection_id=collection_id).next()
+
+        # TODO : specific exception handling; adapter.flickr.FlickrError...
+        except:
+            raise zope.schema.ValidationError(
+                _(u"Could not find collection, or collection is empty."),
+                True
+            )
 validator.WidgetValidatorDiscriminators(FlickrCollectionValidator,
     field=IFlickrGallerySettings['flickr_collection'])
 zope.component.provideAdapter(FlickrCollectionValidator)
