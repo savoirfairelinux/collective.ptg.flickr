@@ -1,0 +1,10 @@
+<registry>
+    <records interface="collective.ptg.flickr.settings.ISettings"
+             prefix="collective.ptg.flickr.settings.ISettings">
+
+        <!-- Default values -->
+        <value key="api_key">9b354d88fb47b772fee4f27ab15d6854</value>
+        <value key="api_secret"></value>
+
+    </records>
+</registry>

@@ -30,6 +30,7 @@ setup(name='collective.ptg.flickr',
       install_requires=[
           'setuptools',
           'flickrapi',
+          'plone.app.registry',
           'plone.app.z3cform',
           'collective.plonetruegallery'
       ],

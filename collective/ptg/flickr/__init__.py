@@ -5,6 +5,10 @@ from itertools import islice
 # Zope imports
 from zope.interface import implements
 from zope.i18nmessageid import MessageFactory
+from zope.component import getUtility
+
+# Plone imports
+from plone.registry.interfaces import IRegistry
 
 # PTG imports
 from collective.plonetruegallery.galleryadapters.base import BaseAdapter
@@ -17,9 +21,6 @@ from interfaces import (
 
 # Translation
 _ = MessageFactory('collective.ptg.flickr')
-
-# TODO : this should be a Plone setting
-API_KEY = "9b354d88fb47b772fee4f27ab15d6854"
 
 try:
     import flickrapi
@@ -214,6 +215,17 @@ class FlickrAdapter(BaseAdapter):
 
     @property
     def flickr(self):
+        '''
+        Returns a FlickrAPI instance.
+        The API key & secret are set in collective.ptg.flickr control panel
+        and stored in the settings registry.
+        '''
+        registry = getUtility(IRegistry)
+        API_KEY = registry['collective.ptg.flickr.settings.ISettings.api_key']
+
+        # (API secret is not needed yet)
+        #API_SECRET = registry['collective.ptg.flickr.settings.ISettings.api_secret']
+
         return  flickrapi.FlickrAPI(API_KEY)
 
     def retrieve_images(self):
@@ -239,7 +251,8 @@ class FlickrAdapter(BaseAdapter):
 
 
         # Slice iterator according to PloneTrueGallery's 'batch_size' setting.
-        # TODO : we could also directly tell Flickr to send less photos.
+        # We could also directly tell Flickr to send less photos but,
+        # since PTG keeps a photo cache anyway, it's a bit overkill.
         return [self.assemble_image_information(image)
                 for image in islice(photos, self.settings.batch_size)]
 

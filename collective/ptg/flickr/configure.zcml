@@ -1,17 +1,28 @@
 <configure
     xmlns="http://namespaces.zope.org/zope"
-   	xmlns:zope="http://namespaces.zope.org/zope"
-   	xmlns:gallery="http://namespaces.zope.org/gallery"
+    xmlns:zope="http://namespaces.zope.org/zope"
+    xmlns:gallery="http://namespaces.zope.org/gallery"
+    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
     xmlns:zcml="http://namespaces.zope.org/zcml"
+    xmlns:grok="http://namespaces.zope.org/grok"
     i18n_domain="collective.plonetruegallery">
-      
 
-      <gallery:type
+
+    <grok:grok package="." />
+
+    <gallery:type
         factory=".FlickrAdapter"
         provides="collective.ptg.flickr.IFlickrAdapter"
         condition=".add_condition"
-    />
+        />
 
+    <genericsetup:registerProfile
+        name="default"
+        title="Plone True Gallery (Flickr extension)"
+        directory="profiles/default"
+        description='Extension profile for the "collective.ptg.flickr" Plone product.'
+        provides="Products.GenericSetup.interfaces.EXTENSION"
+        />
 
 
 </configure>
