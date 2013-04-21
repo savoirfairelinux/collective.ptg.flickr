@@ -1,4 +1,6 @@
 
+# Python imports
+from itertools import islice
 
 # Zope imports
 from zope.interface import implements
@@ -18,9 +20,6 @@ _ = MessageFactory('collective.ptg.flickr')
 
 # TODO : this should be a Plone setting
 API_KEY = "9b354d88fb47b772fee4f27ab15d6854"
-
-# TODO : this should be taken from PloneTrueGallery settings
-MAX_COLLECTION_PHOTOS = 12
 
 try:
     import flickrapi
@@ -173,7 +172,7 @@ class FlickrAdapter(BaseAdapter):
                             media='photos') \
                     .find('photoset').getchildren(): yield photo
 
-    def get_collection_photos(self, user_id, collection_id, max_photos=MAX_COLLECTION_PHOTOS):
+    def gen_collection_photos(self, user_id, collection_id):
 
         # Collect every single photo from that collection.
         photos = []
@@ -185,8 +184,9 @@ class FlickrAdapter(BaseAdapter):
         # Most recent first.
         photos.sort(key=lambda p:p.attrib['dateupload'], reverse=True)
 
-        # We really don't need them all.
-        return photos[:max_photos]
+        # This could be a large list,
+        # but the retrieve_images method will slice it.
+        return iter(photos)
 
 
     def get_mini_photo_url(self, photo):
@@ -218,31 +218,29 @@ class FlickrAdapter(BaseAdapter):
 
     def retrieve_images(self):
 
+        # These values are expected to be valid. See validators.py.
         user_id = self.get_flickr_user_id()
         photoset_id = self.get_flickr_photoset_id()
         collection_id = self.get_flickr_collection_id()
 
         if photoset_id:
-
             try:
                 photos = self.gen_photoset_photos(user_id, photoset_id)
             except Exception, inst:
                 self.log_error(Exception, inst, "Error getting all images")
                 return []
-            else:
-                return [self.assemble_image_information(image) for image in photos]
 
         elif collection_id:
-
             try:
-                photos = self.get_collection_photos(user_id, collection_id)
+                photos = self.gen_collection_photos(user_id, collection_id)
             except Exception, inst:
                 self.log_error(Exception, inst, "Error getting all images")
                 return []
-            else:
-                return [self.assemble_image_information(image) for image in photos]
 
-        # TODO : will this ever happen ?
-        else: return []
+
+        # Slice iterator according to PloneTrueGallery's 'batch_size' setting.
+        # TODO : we could also directly tell Flickr to send less photos.
+        return [self.assemble_image_information(image)
+                for image in islice(photos, self.settings.batch_size)]
 
 

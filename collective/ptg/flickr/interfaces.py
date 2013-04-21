@@ -60,9 +60,9 @@ class IFlickrAdapter(IGalleryAdapter):
         Uses values from settings if user_id and photoset_id are not specified.
         """
 
-    def get_collection_photos(user_id=None, collection_id=None, max_photos=9999):
+    def gen_collection_photos(user_id=None, collection_id=None, max_photos=9999):
         """
-        Returns a sliced list of photos from given collection,
+        Yields all photos from given collection,
         sorted by upload date (most recent first)
 
         Available attributes: same as gen_photoset_photos.
@@ -70,17 +70,17 @@ class IFlickrAdapter(IGalleryAdapter):
 
     def get_mini_photo_url(photo):
         """
-        takes a photo and creates the thumbnail photo url
+        Takes a photo and creates the thumbnail photo url
         """
 
     def get_photo_link(photo):
         """
-        creates the photo link url
+        Creates the photo link url
         """
 
     def get_large_photo_url(photo):
         """
-        create the large photo url
+        Creates the large photo url
         """
 
 class IFlickrGallerySettings(IBaseSettings):
