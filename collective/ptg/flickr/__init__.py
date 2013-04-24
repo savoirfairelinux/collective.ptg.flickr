@@ -8,7 +8,7 @@ from collective.plonetruegallery.interfaces import \
 from collective.plonetruegallery.galleryadapters.base import BaseAdapter
 
 from zope.i18nmessageid import MessageFactory
-_ = MessageFactory('collective.ptg.flickr')
+_ = MessageFactory('collective.plonetruegallery')
 
 try:
     import flickrapi
@@ -105,7 +105,7 @@ class IFlickrGallerySettings(IBaseSettings):
         ),
         required=False)
     flickr_set = schema.TextLine(
-        title=_(u"label_flickr_set", default="Flickr Set"),
+        title=_(u"label_flickr_set", default=u"Flickr Set"),
         description=_(u"description_flickr_set",
             default=u"Name/id of your flickr set."
                     u"(*flickr* gallery type)"
@@ -113,8 +113,9 @@ class IFlickrGallerySettings(IBaseSettings):
         required=False)
         
     flickr_collection = schema.TextLine(
-        title=_("Collection ID"),
-        description=_(u"Will be ignored if a photoset is provided."),
+        title=_(u"label_flickr_collection", default=u"Collection ID"),
+        description=_(u"description_flickr_collection",
+            default=u"Will be ignored if a photoset is provided."),
         required=False)
         
     flickr_api_key = schema.TextLine(
@@ -140,7 +141,7 @@ class FlickrAdapter(BaseAdapter):
 
     schema = IFlickrGallerySettings
     name = u"flickr"
-    description = _(u"Flickr")
+    description = _(u"label_flickr_gallery_type", default=u"Flickr")
 
     sizes = {
         'small': {
