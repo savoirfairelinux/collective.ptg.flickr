@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = "0.1"
+version = "0.2"
 
 setup(name='collective.ptg.flickr',
       version=version,
@@ -16,7 +16,8 @@ setup(name='collective.ptg.flickr',
         "Framework :: Plone :: 3.3",
         "Framework :: Plone :: 4.0",
         "Framework :: Plone :: 4.1",
-        "Framework :: Plone :: 4.2"
+        "Framework :: Plone :: 4.2",
+        "Framework :: Plone :: 4.3"
         ],
       keywords='gallery flickr ',
       author='Nathan Van Gheem',

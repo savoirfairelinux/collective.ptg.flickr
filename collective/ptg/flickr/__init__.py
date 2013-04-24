@@ -49,6 +49,21 @@ class IFlickrAdapter(IGalleryAdapter):
         settings
         """
 
+    def get_flickr_api_key(username):
+        """
+        Returns the api key  (not sure if this is needed)
+        """
+        
+    def get_flickr_api_secret(username):
+        """
+        Returns the api secret (not sure if this is needed)
+        """
+        
+    def get_flickr_collection_id(self):
+        """
+        Returns the collection id. Uses value from settings.
+        """
+
     def get_flickr_photoset_id(theset=None, userid=None):
         """
         Returns the photoset id given a set name and user id.
@@ -83,6 +98,29 @@ class IFlickrGallerySettings(IBaseSettings):
         title=_(u"label_flickr_set", default="Flickr Set"),
         description=_(u"description_flickr_set",
             default=u"Name/id of your flickr set."
+                    u"(*flickr* gallery type)"
+        ),
+        required=False)
+        
+    flickr_collection = schema.TextLine(
+        title=_("Collection ID"),
+        description=_(u"Will be ignored if a photoset is provided."),
+        required=False)
+        
+    flickr_api_key = schema.TextLine(
+        title=_(u"label_flickr_api_key", default="Flickr API key"),
+        description=_(u"description_flickr_api_key",
+            default=u"Your flickr api key."
+                    u"(*flickr* gallery type)"
+        ),
+        default=u"9b354d88fb47b772fee4f27ab15d6854",
+        required=False)
+        
+    
+    flickr_api_secret = schema.TextLine(
+        title=_(u"label_flickr_api_secret", default="Flickr API secret"),
+        description=_(u"description_flickr_api_secret",
+            default=u"Your flickr api secret."
                     u"(*flickr* gallery type)"
         ),
         required=False)
@@ -283,9 +321,66 @@ class FlickrUsernameValidator(validator.SimpleFieldValidator):
                 default=u"Could not find flickr user."),
                 True
             )
-validator.WidgetValidatorDiscriminators(FlickrUsernameValidator,
-    field=IFlickrGallerySettings['flickr_username'])
-zope.component.provideAdapter(FlickrUsernameValidator)
+
+#validator.WidgetValidatorDiscriminators(FlickrUsernameValidator,
+#    field=IFlickrGallerySettings['flickr_username'])
+#zope.component.provideAdapter(FlickrUsernameValidator)
+
+class FlickrCollectionValidator(validator.SimpleFieldValidator):
+
+    def validate(self, collection_id):
+        super(FlickrCollectionValidator, self).validate(collection_id)
+
+        context = self.context
+        request = self.request
+        settings = Data(self.view)
+
+        if settings.gallery_type != 'flickr':
+            return
+
+        # Nothing to validate, and the field is not required.
+        if empty(collection_id):
+            return
+
+        adapter = getGalleryAdapter(context, request, settings.gallery_type)
+        user_id = adapter.get_flickr_user_id()
+
+        try:
+            # Failure to obtain the collection's first photoset
+            # means it's nonexistent or empty
+            adapter.gen_collection_sets(
+                    user_id=user_id,
+                    collection_id=collection_id).next()
+
+        # TODO : specific exception handling; adapter.flickr.FlickrError...
+        except:
+            raise zope.schema.ValidationError(
+                _(u"Could not find collection, or collection is empty."),
+                True
+            )
+
+
+
+
+
+
+# Validators for IFlickrGallerySettings
+#TODO: Find out what / how to validate
+
+
+
+#validator.WidgetValidatorDiscriminators(FlickrSetValidator,
+#    field=IFlickrGallerySettings['flickr_set'])
+#zope.component.provideAdapter(FlickrSetValidator)
+
+#validator.WidgetValidatorDiscriminators(FlickrCollectionValidator,
+#    field=IFlickrGallerySettings['flickr_collection'])
+#zope.component.provideAdapter(FlickrCollectionValidator)
+
+
+
+
+
 
             
             
