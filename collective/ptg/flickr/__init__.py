@@ -54,25 +54,25 @@ class IFlickrAdapter(IGalleryAdapter):
         Returns the collection id. Uses value from settings.
         """
 
-    def get_flickr_photoset_id(user_id=None):
+    def get_flickr_photoset_id(user_id):
         """
         Returns the photoset id based on the name (or id) in settings.
         User ID must be provided.
         """
 
-    def gen_collection_sets(user_id=None, collection_id=None):
+    def gen_collection_sets(user_id, collection_id=None):
         """
         Yields all photosets from a collection (as ElementTree objects)
         Available attributes: [id, title, description]
         """
 
-    def gen_photoset_photos(user_id=None, photoset_id=None):
+    def gen_photoset_photos(user_id, photoset_id=None):
         """
         Yields all photos from a photoset (as ElementTree objects)
         Available attributes: ['secret', 'title', 'farm', 'isprimary', 'id', 'dateupload', 'server']
         """
 
-    def gen_collection_photos(user_id=None, collection_id=None, max_photos=9999):
+    def gen_collection_photos(user_id, collection_id=None):
         """
         Yields all photos from given collection,
         sorted by upload date (most recent first)
@@ -212,11 +212,10 @@ class FlickrAdapter(BaseAdapter):
 
         return None
 
-    def get_flickr_photoset_id(self, user_id=None):
+    def get_flickr_photoset_id(self, user_id):
         settings = self.settings
         flickr = self.flickr
 
-        user_id = user_id or self.get_flickr_user_id()
         if user_id is None:
             return None
 
@@ -239,7 +238,9 @@ class FlickrAdapter(BaseAdapter):
             if theset in (photoset_title, photoset_id):
                 return photoset_id
 
-        self.log_error(Exception, None, "Can't find Flickr photoset ID")
+        self.log_error(Exception, None,
+                "Can't find Flickr photoset,"
+                " or not owned by user (%s)."%user_id)
 
         return None
 
@@ -326,8 +327,20 @@ class FlickrAdapter(BaseAdapter):
         API key and secret both come from settings interface.
         - self.settings.flickr_api_key
         - self.settings.flickr_api_secret
+
+
         '''
-        return flickrapi.FlickrAPI(self.settings.flickr_api_key)
+        args = [None, None]
+
+        if not empty(self.settings.flickr_api_key):
+            args[0] = self.settings.flickr_api_key.strip()
+
+        if not empty(self.settings.flickr_api_secret):
+            args[1] = self.settings.flickr_api_secret.strip()
+
+        print args
+
+        return flickrapi.FlickrAPI(*args)
 
     def retrieve_images(self):
 
@@ -355,7 +368,9 @@ class FlickrAdapter(BaseAdapter):
                 return []
         else:
             self.log_error(Exception, None,
-                "No Flickr photoset or collection provided. No images to show.")
+                "No Flickr photoset or collection provided,"
+                " or not owned by user (%s). No images to show."%user_id)
+
             photos = []
 
 
