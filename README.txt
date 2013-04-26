@@ -18,6 +18,9 @@ Flickr settings:
 
 Default values can be set here: Site Setup > Plone True Gallery Settings > flickr tab.
 
+As far as the photosets/collections are owned by the user or available for
+every album's API key, you can use different API keys for different albums.
+
 
 Collection support
 --------------------
