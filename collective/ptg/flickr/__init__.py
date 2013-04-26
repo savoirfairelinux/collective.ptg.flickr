@@ -8,7 +8,7 @@ from collective.plonetruegallery.interfaces import \
 from collective.plonetruegallery.galleryadapters.base import BaseAdapter
 
 from zope.i18nmessageid import MessageFactory
-_ = MessageFactory('collective.ptg.flickr')
+_ = MessageFactory('collective.plonetruegallery')
 
 try:
     import flickrapi
@@ -54,26 +54,25 @@ class IFlickrAdapter(IGalleryAdapter):
         Returns the collection id. Uses value from settings.
         """
 
-    def get_flickr_photoset_id(theset=None, userid=None):
+    def get_flickr_photoset_id(user_id):
         """
-        Returns the photoset id given a set name and user id.
-        Uses the set and get_flickr_user_id() if they are
-        not specified.
+        Returns the photoset id based on the name (or id) in settings.
+        User ID must be provided.
         """
 
-    def gen_collection_sets(user_id=None, collection_id=None):
+    def gen_collection_sets(user_id, collection_id=None):
         """
         Yields all photosets from a collection (as ElementTree objects)
         Available attributes: [id, title, description]
         """
 
-    def gen_photoset_photos(user_id=None, photoset_id=None):
+    def gen_photoset_photos(user_id, photoset_id=None):
         """
         Yields all photos from a photoset (as ElementTree objects)
         Available attributes: ['secret', 'title', 'farm', 'isprimary', 'id', 'dateupload', 'server']
         """
 
-    def gen_collection_photos(user_id=None, collection_id=None, max_photos=9999):
+    def gen_collection_photos(user_id, collection_id=None):
         """
         Yields all photos from given collection,
         sorted by upload date (most recent first)
@@ -105,7 +104,7 @@ class IFlickrGallerySettings(IBaseSettings):
         ),
         required=False)
     flickr_set = schema.TextLine(
-        title=_(u"label_flickr_set", default="Flickr Set"),
+        title=_(u"label_flickr_set", default=u"Flickr Set"),
         description=_(u"description_flickr_set",
             default=u"Name/id of your flickr set."
                     u"(*flickr* gallery type)"
@@ -113,8 +112,9 @@ class IFlickrGallerySettings(IBaseSettings):
         required=False)
         
     flickr_collection = schema.TextLine(
-        title=_("Collection ID"),
-        description=_(u"Will be ignored if a photoset is provided."),
+        title=_(u"label_flickr_collection", default=u"Collection ID"),
+        description=_(u"description_flickr_collection",
+            default=u"Will be ignored if a photoset is provided."),
         required=False)
         
     flickr_api_key = schema.TextLine(
@@ -140,7 +140,7 @@ class FlickrAdapter(BaseAdapter):
 
     schema = IFlickrGallerySettings
     name = u"flickr"
-    description = _(u"Flickr")
+    description = _(u"label_flickr_gallery_type", default=u"Flickr")
 
     sizes = {
         'small': {
@@ -182,47 +182,48 @@ class FlickrAdapter(BaseAdapter):
             'bodytext': ''
         }
 
-    def get_flickr_user_id(self, username=None):
+    def get_flickr_user_id(self):
         settings = self.settings
         flickr = self.flickr
 
-        if username is None:
-            username = settings.flickr_username
-        username = username.strip()
+        if empty(settings.flickr_username):
+            self.log_error(Exception, None,
+                    "No Flickr username or ID provided")
+            return None
+
+        username = settings.flickr_username.strip()
 
         # Must be an username.
         try:
             return flickr \
                     .people_findByUsername(username=username) \
-                    .find('user').get('nsid')
+                    .find('user').get('nsid').strip()
 
         # No ? Must be an ID then.
-        except:
+        except Exception, inst:
             try:
                 return flickr \
                         .people_getInfo(user_id=username) \
-                        .find('person').get('nsid')
+                        .find('person').get('nsid').strip()
+
             except Exception, inst:
-                self.log_error(Exception, inst, "Can't find Flickr user ID")
+                self.log_error(Exception, inst,
+                        "Can't find Flickr username or ID")
 
         return None
 
-    def get_flickr_photoset_id(self, user_id=None, theset=None):
+    def get_flickr_photoset_id(self, user_id):
         settings = self.settings
         flickr = self.flickr
 
         if user_id is None:
-            user_id = self.get_flickr_user_id()
-        user_id = user_id.strip()
+            return None
 
-        if theset is None:
-            theset = settings.flickr_set
+        # This could mean we're using a collection instead of a set.
+        if empty(settings.flickr_set):
+            return None
 
-            # This means we're using a collection, not a set.
-            if theset is None:
-                return None
-
-        theset = theset.strip()
+        theset = settings.flickr_set.strip()
 
         photosets = flickr \
                     .photosets_getList(user_id=user_id) \
@@ -237,13 +238,20 @@ class FlickrAdapter(BaseAdapter):
             if theset in (photoset_title, photoset_id):
                 return photoset_id
 
-        # TODO : log "exception" here ?
+        self.log_error(Exception, None,
+                "Can't find Flickr photoset,"
+                " or not owned by user (%s)."%user_id)
 
         return None
 
     def get_flickr_collection_id(self):
         settings = self.settings
-        return settings.flickr_collection
+
+        if empty(settings.flickr_collection):
+            return None
+
+        return settings.flickr_collection.strip()
+
 
     def gen_collection_sets(self, user_id, collection_id):
 
@@ -319,31 +327,51 @@ class FlickrAdapter(BaseAdapter):
         API key and secret both come from settings interface.
         - self.settings.flickr_api_key
         - self.settings.flickr_api_secret
+
+
         '''
-        return  flickrapi.FlickrAPI(self.settings.flickr_api_key)
+        args = [None, None]
+
+        if not empty(self.settings.flickr_api_key):
+            args[0] = self.settings.flickr_api_key.strip()
+
+        if not empty(self.settings.flickr_api_secret):
+            args[1] = self.settings.flickr_api_secret.strip()
+
+        print args
+
+        return flickrapi.FlickrAPI(*args)
 
     def retrieve_images(self):
 
         # These values are expected to be valid. We trust the user.
         user_id = self.get_flickr_user_id()
-        photoset_id = self.get_flickr_photoset_id()
+        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
         collection_id = self.get_flickr_collection_id()
 
-        photos = []
 
         if photoset_id:
             try:
                 photos = self.gen_photoset_photos(user_id, photoset_id)
             except Exception, inst:
-                self.log_error(Exception, inst, "Error getting all images")
+                self.log_error(Exception, inst,
+                    "Error getting images from Flickr photoset %s"%photoset_id)
+
                 return []
 
         elif collection_id:
             try:
                 photos = self.gen_collection_photos(user_id, collection_id)
             except Exception, inst:
-                self.log_error(Exception, inst, "Error getting all images")
+                self.log_error(Exception, inst,
+                    "Error getting images from Flickr collection %s"%photoset_id)
                 return []
+        else:
+            self.log_error(Exception, None,
+                "No Flickr photoset or collection provided,"
+                " or not owned by user (%s). No images to show."%user_id)
+
+            photos = []
 
 
         # Slice iterator according to PloneTrueGallery's 'batch_size' setting.

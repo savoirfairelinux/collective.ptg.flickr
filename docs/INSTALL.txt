@@ -1,10 +1,10 @@
 collective.ptg.flickr
 ========================================
 
-Add ``collective.ptg.picasa`` to the list of eggs to install, e.g.::
+Add ``collective.ptg.flickr`` to the list of eggs to install, e.g.::
 
    [buildout]
    ...
    eggs =
        ...
-       collective.ptg.picasa
+       collective.ptg.flickr
