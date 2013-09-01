@@ -1,17 +1,16 @@
 <configure
     xmlns="http://namespaces.zope.org/zope"
-   	xmlns:zope="http://namespaces.zope.org/zope"
-   	xmlns:gallery="http://namespaces.zope.org/gallery"
+    xmlns:zope="http://namespaces.zope.org/zope"
+    xmlns:gallery="http://namespaces.zope.org/gallery"
     xmlns:zcml="http://namespaces.zope.org/zcml"
     i18n_domain="collective.plonetruegallery">
-      
 
-      <gallery:type
+    <include package="collective.plonetruegallery.meta" />
+
+    <gallery:type
         factory=".FlickrAdapter"
         provides="collective.ptg.flickr.IFlickrAdapter"
         condition=".add_condition"
     />
-
-
 
 </configure>
