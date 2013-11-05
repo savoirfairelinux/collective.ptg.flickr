@@ -13,4 +13,10 @@
         condition=".add_condition"
     />
 
+    <utility
+        provides="zope.schema.interfaces.IVocabularyFactory"
+        component=".vocabularies.SizeVocabulary"
+        name="collective.ptg.flickr.SizeVocabulary"
+        />
+
 </configure>
