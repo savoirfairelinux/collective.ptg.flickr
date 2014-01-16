@@ -97,6 +97,16 @@ class IFlickrAdapter(IGalleryAdapter):
         create the large photo url
         """
 
+    def get_original_image_url(photo):
+        """
+        Image URL on flickr.com
+        """
+
+    def get_original_context_url(photo):
+        """
+        Image photoset or collection URL on flickr.com
+        """
+
 
 class IFlickrGallerySettings(IBaseSettings):
 
@@ -245,15 +255,38 @@ class FlickrAdapter(BaseAdapter):
 
     }
 
+    def get_original_image_url(self, image):
+        """
+        Image URL on flickr.com
+        """
+        return "http://flickr.com/photo.gne?id=%s" % image.get('id')
+
+    def get_original_context_url(self, image):
+        """
+        Image photoset or collection URL on flickr.com
+        """
+        settings = self.settings
+        user_id = self.get_flickr_user_id()
+        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        collection_id = self.get_flickr_collection_id()
+
+        prefix = "sets" * bool(photoset_id) or "collections" * bool(collection_id)
+        code = photoset_id or collection_id
+
+        return "http://www.flickr.com/photos/%s/%s/%s/" % (
+            settings.flickr_username, prefix, code)
+
     def assemble_image_information(self, image):
         img_url = self.get_large_photo_url(image)
+
         return {
             'image_url': img_url,
             'thumb_url': self.get_mini_photo_url(image),
             'link': self.get_photo_link(image),
             'title': image.get('title'),
-            'description': "",
-            'original_image_url': img_url,
+            'description': image.find('description').text,
+            'original_image_url': self.get_original_image_url(image),
+            'original_context_url': self.get_original_context_url(image),
             'download_url': img_url,
             'copyright': '',
             'portal_type': '_flickr',
@@ -346,9 +379,12 @@ class FlickrAdapter(BaseAdapter):
 
         # Yield all photos.
         # Exception handling is expected to be made by calling context.
+        # Extras
+        #   date_upload allows chronological order
+        #   description allows better image captions
         for photo in flickr.photosets_getPhotos(
                 user_id=user_id, photoset_id=photoset_id,
-                extras='date_upload', media='photos').find(
+                extras='date_upload,description', media='photos').find(
                 'photoset').getchildren():
             yield photo
 
