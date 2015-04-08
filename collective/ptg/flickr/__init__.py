@@ -1,4 +1,7 @@
 
+
+from random import shuffle
+
 from zope import schema
 from zope.interface import Attribute, implements
 from itertools import islice
@@ -121,6 +124,14 @@ class IFlickrGallerySettings(IBaseSettings):
         description=_(
             u"description_flickr_collection",
             default=u"Will be ignored if a photoset is provided."),
+        required=False)
+
+    flickr_shuffle_photos = schema.Bool(
+        title=_(u"label_flickr_shuffle", default=u"Shuffle pictures"),
+        description=_(
+            u"description_flickr_shuffle",
+            default=u"The photos from the collection or the photoset will be shuffled"
+        ),
         required=False)
 
     flickr_api_key = schema.TextLine(
@@ -272,16 +283,25 @@ class FlickrAdapter(BaseAdapter):
     def gen_photoset_photos(self, user_id, photoset_id):
 
         flickr = self.flickr
+        settings = self.settings
 
         # Yield all photos.
         # Exception handling is expected to be made by calling context.
+        photos = []
         for photo in flickr.photosets_getPhotos(
                 user_id=user_id, photoset_id=photoset_id,
                 extras='date_upload', media='photos').find(
                 'photoset').getchildren():
-            yield photo
+            photos.append(photo)
+
+        if settings.flickr_shuffle_photos:
+            shuffle(photos)
+
+        return iter(photos)
 
     def gen_collection_photos(self, user_id, collection_id):
+
+        settings = self.settings
 
         # Collect every single photo from that collection.
         photos = []
@@ -290,8 +310,11 @@ class FlickrAdapter(BaseAdapter):
             for photo in self.gen_photoset_photos(user_id, photoset_id):
                 photos.append(photo)
 
-        # Most recent first.
-        photos.sort(key=lambda p: p.attrib['dateupload'], reverse=True)
+        if settings.flickr_shuffle_photos:
+            shuffle(photos)
+        else:
+            # Most recent first.
+            photos.sort(key=lambda p: p.attrib['dateupload'], reverse=True)
 
         # This could be a large list,
         # but the retrieve_images method will slice it.
