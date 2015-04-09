@@ -1,6 +1,6 @@
 
 
-from random import shuffle
+from random import randrange
 
 from zope import schema
 from zope.interface import Attribute, implements
@@ -29,6 +29,22 @@ def add_condition():
 def empty(v):
     return v is None or len(v.strip()) == 0
 
+
+def irandom(iterable, bufsize=1000):
+    '''
+    generator that randomizes an iterable. space: O(bufsize). time: O(n+bufsize).
+    source: https://gist.github.com/736048/bb36334a8da13630ea0916295e75875199bb980e
+    '''
+    buf = [None] * bufsize
+
+    for x in iterable:
+        i = randrange(bufsize)
+        if buf[i] is not None:
+            yield buf[i]
+        buf[i] = x
+    for x in buf:
+        if x is not None:
+            yield x
 
 class IFlickrAdapter(IGalleryAdapter):
     """
@@ -379,7 +395,7 @@ class FlickrAdapter(BaseAdapter):
                 self.log_error(
                     Exception, inst,
                     "Error getting images from Flickr collection %s" % (
-                        photoset_id))
+                        collection_id))
                 return []
         else:
             self.log_error(
@@ -389,9 +405,7 @@ class FlickrAdapter(BaseAdapter):
 
             photos = []
 
-        if self.settings.flickr_shuffle_photos:
-            shuffle(photos)
-
+        photos = irandom(photos)
         # Slice iterator according to PloneTrueGallery's 'batch_size' setting.
         # We could also directly tell Flickr to send less photos but,
         # since PTG keeps a photo cache anyway, it's a bit overkill.
