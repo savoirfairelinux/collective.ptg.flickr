@@ -405,7 +405,9 @@ class FlickrAdapter(BaseAdapter):
 
             photos = []
 
-        photos = irandom(photos)
+        if self.settings.flickr_shuffle_photos:
+            photos = irandom(photos)
+
         # Slice iterator according to PloneTrueGallery's 'batch_size' setting.
         # We could also directly tell Flickr to send less photos but,
         # since PTG keeps a photo cache anyway, it's a bit overkill.
