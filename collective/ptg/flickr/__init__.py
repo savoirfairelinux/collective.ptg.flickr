@@ -286,14 +286,11 @@ class FlickrAdapter(BaseAdapter):
 
         # Yield all photos.
         # Exception handling is expected to be made by calling context.
-        photos = []
         for photo in flickr.photosets_getPhotos(
                 user_id=user_id, photoset_id=photoset_id,
                 extras='date_upload', media='photos').find(
                 'photoset').getchildren():
-            photos.append(photo)
-
-        return iter(photos)
+            yield photo
 
     def gen_collection_photos(self, user_id, collection_id):
 
