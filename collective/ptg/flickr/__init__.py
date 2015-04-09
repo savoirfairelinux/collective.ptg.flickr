@@ -283,7 +283,6 @@ class FlickrAdapter(BaseAdapter):
     def gen_photoset_photos(self, user_id, photoset_id):
 
         flickr = self.flickr
-        settings = self.settings
 
         # Yield all photos.
         # Exception handling is expected to be made by calling context.
@@ -294,14 +293,9 @@ class FlickrAdapter(BaseAdapter):
                 'photoset').getchildren():
             photos.append(photo)
 
-        if settings.flickr_shuffle_photos:
-            shuffle(photos)
-
         return iter(photos)
 
     def gen_collection_photos(self, user_id, collection_id):
-
-        settings = self.settings
 
         # Collect every single photo from that collection.
         photos = []
@@ -310,11 +304,8 @@ class FlickrAdapter(BaseAdapter):
             for photo in self.gen_photoset_photos(user_id, photoset_id):
                 photos.append(photo)
 
-        if settings.flickr_shuffle_photos:
-            shuffle(photos)
-        else:
-            # Most recent first.
-            photos.sort(key=lambda p: p.attrib['dateupload'], reverse=True)
+        # Most recent first.
+        photos.sort(key=lambda p: p.attrib['dateupload'], reverse=True)
 
         # This could be a large list,
         # but the retrieve_images method will slice it.
@@ -399,6 +390,9 @@ class FlickrAdapter(BaseAdapter):
                 " or not owned by user (%s). No images to show." % user_id)
 
             photos = []
+
+        if self.settings.flickr_shuffle_photos:
+            shuffle(photos)
 
         # Slice iterator according to PloneTrueGallery's 'batch_size' setting.
         # We could also directly tell Flickr to send less photos but,
