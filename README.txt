@@ -39,3 +39,4 @@ Coding Contributions
 --------------------
 * Espen Moe-Nilssen
 * Sylvain Bouchard
+* Bernard Chhun
