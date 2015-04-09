@@ -8,7 +8,6 @@ from itertools import islice
 from collective.plonetruegallery.interfaces import \
     IGalleryAdapter, IBaseSettings
 from collective.plonetruegallery.galleryadapters.base import BaseAdapter
-
 from zope.i18nmessageid import MessageFactory
 _ = MessageFactory('collective.plonetruegallery')
 
@@ -16,6 +15,7 @@ try:
     import flickrapi
 except:
     pass
+
 
 
 def add_condition():
@@ -116,8 +116,19 @@ class IFlickrAdapter(IGalleryAdapter):
         create the large photo url
         """
 
+    def get_original_image_url(photo):
+        """
+        Image URL on flickr.com
+        """
+
+    def get_original_context_url(photo):
+        """
+        Image photoset or collection URL on flickr.com
+        """
+
 
 class IFlickrGallerySettings(IBaseSettings):
+
     flickr_username = schema.TextLine(
         title=_(u"label_flickr_username", default=u"flickr username"),
         description=_(
@@ -126,6 +137,7 @@ class IFlickrGallerySettings(IBaseSettings):
                     u"(*flickr* gallery type)"
         ),
         required=False)
+
     flickr_set = schema.TextLine(
         title=_(u"label_flickr_set", default=u"Flickr Set"),
         description=_(
@@ -151,6 +163,25 @@ class IFlickrGallerySettings(IBaseSettings):
         default=False,
         required=False)
 
+    flickr_size = schema.Choice(
+        title=_(u"label_gallery_size", default=u"Size"),
+        description=_(u"description_flickr_size",
+            default=u"Available Flickr sizes. "
+                    u"PTG default: use generic size from main tab."),
+        default='ptg_default',
+        vocabulary="collective.ptg.flickr.SizeVocabulary",
+        required=True)
+
+    flickr_thumb_size = schema.Choice(
+        title=_(u"label_thumb_size", default=u"Thumbnail image size"),
+        description=_(u"description_flickr_thumb_size",
+            default=u"Available Flickr sizes. "
+                    u"PTG default: use generic size from main tab."
+        ),
+        default='ptg_default',
+        vocabulary="collective.ptg.flickr.SizeVocabulary",
+        required=True)
+
     flickr_api_key = schema.TextLine(
         title=_(u"label_flickr_api_key", default="Flickr API key"),
         description=_(
@@ -171,46 +202,119 @@ class IFlickrGallerySettings(IBaseSettings):
         required=False)
 
 
+
+
 class FlickrAdapter(BaseAdapter):
     implements(IFlickrAdapter, IGalleryAdapter)
 
     schema = IFlickrGallerySettings
     name = u"flickr"
     description = _(u"label_flickr_gallery_type", default=u"Flickr")
-
+    
     sizes = {
-        'small': {
-            'width': 500,
-            'height': 375
+
+        # Flickr photo sizes
+        # See http://www.flickr.com/services/api/flickr.photos.getSizes.html
+        'flickr' : {
+            'Square': {
+                'suffix' : '_s'
+            },
+            'Large Square': {
+                'suffix' : '_q'
+            },
+            'Thumbnail': {
+                'suffix' : '_t'
+            },
+            'Small': {
+                'suffix' : '_m'
+            },
+            'Small 320': {
+                'suffix' : '_n'
+            },
+            'Medium': {
+                'suffix' : ''
+            },
+            'Medium 640': {
+                'suffix' : '_z'
+            },
+            'Medium 800': {
+                'suffix' : '_c'
+            },
+            'Large': {
+                'suffix' : '_b'
+            },
+
+            # Original sizes require special permissions
+            # See http://www.flickr.com/services/api/misc.urls.html
+            #
+            # 'Original' : {
+            #     'suffix' : '_o'
+            # },
         },
-        'medium': {
-            'width': 640,
-            'height': 480
+
+        # Arbitrary Flickr sizes for generic PTG options
+        'ptg' : {
+            'small': {
+                'suffix' : '_m'
+            },
+            'medium': {
+                'suffix' : ''
+            },
+            'large': {
+                'suffix' : '_b'
+            },
         },
-        'large': {
-            'width': 1024,
-            'height': 768
-        },
-        'thumb': {
-            'width': 72,
-            'height': 72
-        },
-        'flickr': {
-            'small': '_m',
-            'medium': '',
-            'large': '_b'
+
+        # Arbitrary Flickr thumb sizes for generic PTG options
+        'ptg_thumb' : {
+            'tile': {
+                'suffix' : '_s'
+            },
+            'thumb': {
+                'suffix' : '_s'
+            },
+            'mini': {
+                'suffix' : '_s'
+            },
+            'preview': {
+                'suffix' : '_s'
+            },
         }
+
     }
+
+    def get_original_image_url(self, image):
+        """
+        Image URL on flickr.com
+        """
+        return "http://flickr.com/photo.gne?id=%s" % image.get('id')
+
+    def get_original_context_url(self, image):
+        """
+        Image photoset or collection URL on flickr.com
+        """
+        settings = self.settings
+        user_id = self.get_flickr_user_id()
+        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        collection_id = self.get_flickr_collection_id()
+
+        prefix = "sets" * bool(photoset_id) or "collections" * bool(collection_id)
+        code = photoset_id or collection_id
+
+        return "http://www.flickr.com/photos/%s/%s/%s/" % (
+            settings.flickr_username, prefix, code)
 
     def assemble_image_information(self, image):
         img_url = self.get_large_photo_url(image)
+
         return {
             'image_url': img_url,
             'thumb_url': self.get_mini_photo_url(image),
             'link': self.get_photo_link(image),
             'title': image.get('title'),
-            'description': "",
-            'original_image_url': img_url,
+            'description': image.find('description').text,
+            'original_image_url': self.get_original_image_url(image),
+            'original_context_url': self.get_original_context_url(image),
             'download_url': img_url,
             'copyright': '',
             'portal_type': '_flickr',
@@ -303,9 +407,12 @@ class FlickrAdapter(BaseAdapter):
 
         # Yield all photos.
         # Exception handling is expected to be made by calling context.
+        # Extras
+        #   date_upload allows chronological order
+        #   description allows better image captions
         for photo in flickr.photosets_getPhotos(
                 user_id=user_id, photoset_id=photoset_id,
-                extras='date_upload', media='photos').find(
+                extras='date_upload,description', media='photos').find(
                 'photoset').getchildren():
             yield photo
 
@@ -323,15 +430,18 @@ class FlickrAdapter(BaseAdapter):
 
         # This could be a large list,
         # but the retrieve_images method will slice it.
-        return iter(photos)
+        return iter(photos) 
 
     def get_mini_photo_url(self, photo):
-        return "http://farm%s.static.flickr.com/%s/%s_%s_s.jpg" % (
-            photo.get('farm'),
-            photo.get('server'),
-            photo.get('id'),
-            photo.get('secret'),
-        )
+
+        # Use Flickr size or PTG default
+        if self.settings.flickr_size == 'ptg_default':
+            k, size = 'ptg_thumb', self.settings.thumb_size
+        else:
+            k, size = 'flickr', self.settings.flickr_thumb_size
+        
+        suffix = self.sizes[k][size]['suffix']
+        return self._get_photo_url(photo, suffix)
 
     def get_photo_link(self, photo):
         return "http://www.flickr.com/photos/%s/%s/sizes/o/" % (
@@ -339,14 +449,26 @@ class FlickrAdapter(BaseAdapter):
             photo.get('id')
         )
 
-    def get_large_photo_url(self, photo):
+    def _get_photo_url(self, photo, suffix):
+
         return "http://farm%s.static.flickr.com/%s/%s_%s%s.jpg" % (
             photo.get('farm'),
             photo.get('server'),
             photo.get('id'),
             photo.get('secret'),
-            self.sizes['flickr'][self.settings.size]
+            suffix
         )
+
+    def get_large_photo_url(self, photo):
+
+        # Use Flickr size or PTG default
+        if self.settings.flickr_size == 'ptg_default':
+            k, size = 'ptg', self.settings.size
+        else:
+            k, size = 'flickr', self.settings.flickr_size
+        
+        suffix = self.sizes[k][size]['suffix']
+        return self._get_photo_url(photo, suffix)
 
     @property
     def flickr(self):
@@ -416,3 +538,4 @@ class FlickrAdapter(BaseAdapter):
 
         return [self.assemble_image_information(image)
                 for image in photos]
+
