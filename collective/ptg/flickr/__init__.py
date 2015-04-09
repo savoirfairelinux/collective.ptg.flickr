@@ -210,7 +210,7 @@ class FlickrAdapter(BaseAdapter):
     schema = IFlickrGallerySettings
     name = u"flickr"
     description = _(u"label_flickr_gallery_type", default=u"Flickr")
-    
+
     sizes = {
 
         # Flickr photo sizes
@@ -430,7 +430,7 @@ class FlickrAdapter(BaseAdapter):
 
         # This could be a large list,
         # but the retrieve_images method will slice it.
-        return iter(photos) 
+        return iter(photos)
 
     def get_mini_photo_url(self, photo):
 
@@ -439,7 +439,7 @@ class FlickrAdapter(BaseAdapter):
             k, size = 'ptg_thumb', self.settings.thumb_size
         else:
             k, size = 'flickr', self.settings.flickr_thumb_size
-        
+
         suffix = self.sizes[k][size]['suffix']
         return self._get_photo_url(photo, suffix)
 
@@ -466,7 +466,7 @@ class FlickrAdapter(BaseAdapter):
             k, size = 'ptg', self.settings.size
         else:
             k, size = 'flickr', self.settings.flickr_size
-        
+
         suffix = self.sizes[k][size]['suffix']
         return self._get_photo_url(photo, suffix)
 
