@@ -132,6 +132,7 @@ class IFlickrGallerySettings(IBaseSettings):
             u"description_flickr_shuffle",
             default=u"The photos from the collection or the photoset will be shuffled"
         ),
+        default=False,
         required=False)
 
     flickr_api_key = schema.TextLine(
