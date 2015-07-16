@@ -419,18 +419,10 @@ class FlickrAdapter(BaseAdapter):
     def gen_collection_photos(self, user_id, collection_id):
 
         # Collect every single photo from that collection.
-        photos = []
         for photoset in self.gen_collection_sets(user_id, collection_id):
             photoset_id = photoset.attrib['id']
             for photo in self.gen_photoset_photos(user_id, photoset_id):
-                photos.append(photo)
-
-        # Most recent first.
-        photos.sort(key=lambda p: p.attrib['dateupload'], reverse=True)
-
-        # This could be a large list,
-        # but the retrieve_images method will slice it.
-        return iter(photos)
+                yield photo
 
     def get_mini_photo_url(self, photo):
 
@@ -487,8 +479,6 @@ class FlickrAdapter(BaseAdapter):
 
         if not empty(self.settings.flickr_api_secret):
             args[1] = self.settings.flickr_api_secret.strip()
-
-        print args
 
         return flickrapi.FlickrAPI(*args)
 
