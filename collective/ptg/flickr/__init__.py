@@ -295,7 +295,12 @@ class FlickrAdapter(BaseAdapter):
         """
         settings = self.settings
         user_id = self.get_flickr_user_id()
-        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        try:
+            photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        except Exception as e:
+            self.log_error(e, None, "flickr is unresponsive")
+            return ""
+
         collection_id = self.get_flickr_collection_id()
 
         prefix = "sets" * bool(photoset_id) or "collections" * bool(collection_id)
