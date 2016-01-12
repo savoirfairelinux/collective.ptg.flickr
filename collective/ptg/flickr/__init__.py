@@ -11,6 +11,8 @@ from collective.plonetruegallery.galleryadapters.base import BaseAdapter
 from zope.i18nmessageid import MessageFactory
 _ = MessageFactory('collective.plonetruegallery')
 
+from ssl import SSLError
+
 try:
     import flickrapi
 except:
@@ -486,8 +488,18 @@ class FlickrAdapter(BaseAdapter):
 
         # These values are expected to be valid. We trust the user.
         user_id = self.get_flickr_user_id()
-        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
-        collection_id = self.get_flickr_collection_id()
+
+        try:
+            photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        except SSLError:
+            self.log_error(SSLError, None, "flickr is unresponsive")
+            return []
+
+        try:
+            collection_id = self.get_flickr_collection_id()
+        except SSLError:
+            self.log_error(SSLError, None, "flickr is unresponsive")
+            return []
 
         if photoset_id:
             try:
@@ -528,4 +540,3 @@ class FlickrAdapter(BaseAdapter):
 
         return [self.assemble_image_information(image)
                 for image in photos]
-
