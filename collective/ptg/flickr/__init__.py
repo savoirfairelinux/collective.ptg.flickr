@@ -12,7 +12,7 @@ from zope.i18nmessageid import MessageFactory
 _ = MessageFactory('collective.plonetruegallery')
 
 from ssl import SSLError
-from httplib import BadStatusLine
+from httplib import BadStatusLine, HTTPError
 
 try:
     import flickrapi
@@ -492,13 +492,13 @@ class FlickrAdapter(BaseAdapter):
 
         try:
             photoset_id = self.get_flickr_photoset_id(user_id=user_id)
-        except (SSLError, BadStatusLine) as e:
+        except (SSLError, BadStatusLine, HTTPError) as e:
             self.log_error(e, None, "flickr is unresponsive")
             return []
 
         try:
             collection_id = self.get_flickr_collection_id()
-        except (SSLError, BadStatusLine) as e:
+        except (SSLError, BadStatusLine, HTTPError) as e:
             self.log_error(e, None, "flickr is unresponsive")
             return []
 
