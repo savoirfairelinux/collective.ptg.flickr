@@ -298,7 +298,7 @@ class FlickrAdapter(BaseAdapter):
         try:
             photoset_id = self.get_flickr_photoset_id(user_id=user_id)
         except Exception as e:
-            self.log_error(e, None, "flickr is unresponsive")
+            self.log_error(Exception, e, "get_original_image_url: flickr is unresponsive")
             return ""
 
         collection_id = self.get_flickr_collection_id()
@@ -495,13 +495,13 @@ class FlickrAdapter(BaseAdapter):
         try:
             photoset_id = self.get_flickr_photoset_id(user_id=user_id)
         except Exception as e:
-            self.log_error(e, None, "flickr is unresponsive")
+            self.log_error(Exception, e, "retrieve_images: flickr is unresponsive")
             return []
 
         try:
             collection_id = self.get_flickr_collection_id()
         except Exception as e:
-            self.log_error(e, None, "flickr is unresponsive")
+            self.log_error(Exception, e, "retrieve_images: flickr is unresponsive")
             return []
 
         if photoset_id:
