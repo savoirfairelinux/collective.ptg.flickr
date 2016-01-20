@@ -1,6 +1,9 @@
 
 
 from random import randrange
+import ssl
+import urllib2
+import socket
 
 from zope import schema
 from zope.interface import Attribute, implements
@@ -295,10 +298,11 @@ class FlickrAdapter(BaseAdapter):
         """
         settings = self.settings
         user_id = self.get_flickr_user_id()
+
         try:
             photoset_id = self.get_flickr_photoset_id(user_id=user_id)
         except Exception as e:
-            self.log_error(Exception, e, "get_original_image_url: flickr is unresponsive")
+            self.log_error(Exception, e, "get_original_context_url: flickr is unresponsive")
             return ""
 
         collection_id = self.get_flickr_collection_id()
@@ -367,9 +371,19 @@ class FlickrAdapter(BaseAdapter):
             return None
 
         theset = settings.flickr_set.strip()
-
-        photosets = flickr.photosets_getList(
-            user_id=user_id).find('photosets').getchildren()
+        possible_error_list = (
+            urllib2.URLError,
+            ssl.SSLError,
+            socket.timeout,
+            socket.error,
+            urllib2.HTTPError
+        )
+        
+        try:
+            photosets = flickr.photosets_getList(user_id=user_id).find('photosets').getchildren()
+        except possible_error_list as e:
+            self.log_error(Exception, e, "get_flickr_photoset_id: flickr is not responsive")
+            return None
 
         for photoset in photosets:
 
