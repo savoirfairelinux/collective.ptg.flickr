@@ -19,6 +19,13 @@ try:
 except:
     pass
 
+POSSIBLE_FLICKERING_FLICKR_ERROR = (
+    urllib2.URLError,
+    ssl.SSLError,
+    socket.timeout,
+    socket.error,
+    urllib2.HTTPError
+)
 
 
 def add_condition():
@@ -301,7 +308,7 @@ class FlickrAdapter(BaseAdapter):
 
         try:
             photoset_id = self.get_flickr_photoset_id(user_id=user_id)
-        except Exception as e:
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
             self.log_error(Exception, e, "get_original_context_url: flickr is unresponsive")
             return ""
 
@@ -371,17 +378,10 @@ class FlickrAdapter(BaseAdapter):
             return None
 
         theset = settings.flickr_set.strip()
-        possible_error_list = (
-            urllib2.URLError,
-            ssl.SSLError,
-            socket.timeout,
-            socket.error,
-            urllib2.HTTPError
-        )
         
         try:
             photosets = flickr.photosets_getList(user_id=user_id).find('photosets').getchildren()
-        except possible_error_list as e:
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
             self.log_error(Exception, e, "get_flickr_photoset_id: flickr is not responsive")
             return None
 
@@ -508,20 +508,20 @@ class FlickrAdapter(BaseAdapter):
 
         try:
             photoset_id = self.get_flickr_photoset_id(user_id=user_id)
-        except Exception as e:
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
             self.log_error(Exception, e, "retrieve_images: flickr is unresponsive")
             return []
 
         try:
             collection_id = self.get_flickr_collection_id()
-        except Exception as e:
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
             self.log_error(Exception, e, "retrieve_images: flickr is unresponsive")
             return []
 
         if photoset_id:
             try:
                 photos = self.gen_photoset_photos(user_id, photoset_id)
-            except Exception, inst:
+            except POSSIBLE_FLICKERING_FLICKR_ERROR, inst:
                 self.log_error(
                     Exception, inst,
                     "Error getting images from Flickr photoset %s" % (
@@ -532,7 +532,7 @@ class FlickrAdapter(BaseAdapter):
         elif collection_id:
             try:
                 photos = self.gen_collection_photos(user_id, collection_id)
-            except Exception, inst:
+            except POSSIBLE_FLICKERING_FLICKR_ERROR, inst:
                 self.log_error(
                     Exception, inst,
                     "Error getting images from Flickr collection %s" % (
