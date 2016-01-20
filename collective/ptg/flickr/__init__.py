@@ -1,6 +1,9 @@
 
 
 from random import randrange
+import ssl
+import urllib2
+import socket
 
 from zope import schema
 from zope.interface import Attribute, implements
@@ -16,6 +19,13 @@ try:
 except:
     pass
 
+POSSIBLE_FLICKERING_FLICKR_ERROR = (
+    urllib2.URLError,
+    ssl.SSLError,
+    socket.timeout,
+    socket.error,
+    urllib2.HTTPError
+)
 
 
 def add_condition():
@@ -295,7 +305,13 @@ class FlickrAdapter(BaseAdapter):
         """
         settings = self.settings
         user_id = self.get_flickr_user_id()
-        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+
+        try:
+            photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
+            self.log_error(Exception, e, "get_original_context_url: flickr is unresponsive")
+            return ""
+
         collection_id = self.get_flickr_collection_id()
 
         prefix = "sets" * bool(photoset_id) or "collections" * bool(collection_id)
@@ -362,9 +378,12 @@ class FlickrAdapter(BaseAdapter):
             return None
 
         theset = settings.flickr_set.strip()
-
-        photosets = flickr.photosets_getList(
-            user_id=user_id).find('photosets').getchildren()
+        
+        try:
+            photosets = flickr.photosets_getList(user_id=user_id).find('photosets').getchildren()
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
+            self.log_error(Exception, e, "get_flickr_photoset_id: flickr is not responsive")
+            return None
 
         for photoset in photosets:
 
@@ -486,13 +505,23 @@ class FlickrAdapter(BaseAdapter):
 
         # These values are expected to be valid. We trust the user.
         user_id = self.get_flickr_user_id()
-        photoset_id = self.get_flickr_photoset_id(user_id=user_id)
-        collection_id = self.get_flickr_collection_id()
+
+        try:
+            photoset_id = self.get_flickr_photoset_id(user_id=user_id)
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
+            self.log_error(Exception, e, "retrieve_images: flickr is unresponsive")
+            return []
+
+        try:
+            collection_id = self.get_flickr_collection_id()
+        except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
+            self.log_error(Exception, e, "retrieve_images: flickr is unresponsive")
+            return []
 
         if photoset_id:
             try:
                 photos = self.gen_photoset_photos(user_id, photoset_id)
-            except Exception, inst:
+            except POSSIBLE_FLICKERING_FLICKR_ERROR, inst:
                 self.log_error(
                     Exception, inst,
                     "Error getting images from Flickr photoset %s" % (
@@ -503,7 +532,7 @@ class FlickrAdapter(BaseAdapter):
         elif collection_id:
             try:
                 photos = self.gen_collection_photos(user_id, collection_id)
-            except Exception, inst:
+            except POSSIBLE_FLICKERING_FLICKR_ERROR, inst:
                 self.log_error(
                     Exception, inst,
                     "Error getting images from Flickr collection %s" % (
@@ -528,4 +557,3 @@ class FlickrAdapter(BaseAdapter):
 
         return [self.assemble_image_information(image)
                 for image in photos]
-
