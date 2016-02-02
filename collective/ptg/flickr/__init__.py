@@ -4,6 +4,7 @@ from random import randrange
 import ssl
 import urllib2
 import socket
+import httplib
 
 from zope import schema
 from zope.interface import Attribute, implements
@@ -24,7 +25,8 @@ POSSIBLE_FLICKERING_FLICKR_ERROR = (
     ssl.SSLError,
     socket.timeout,
     socket.error,
-    urllib2.HTTPError
+    urllib2.HTTPError,
+    httplib.BadStatusLine
 )
 
 
@@ -378,7 +380,7 @@ class FlickrAdapter(BaseAdapter):
             return None
 
         theset = settings.flickr_set.strip()
-        
+
         try:
             photosets = flickr.photosets_getList(user_id=user_id).find('photosets').getchildren()
         except POSSIBLE_FLICKERING_FLICKR_ERROR as e:
